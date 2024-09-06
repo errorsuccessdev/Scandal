@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Printing;
@@ -19,6 +20,11 @@ namespace Scandal
 {
     internal class Program
     {
+        // this translates a win32 BOOL into a c# bool
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool SetForegroundWindow(IntPtr hWnd);
+
         const int WIA_S_NO_DEVICE_AVAILABLE = -2145320939;
 
         static void Main()
@@ -63,6 +69,12 @@ namespace Scandal
             }
         }
 
+        static void sendConsoleToForeground()
+        {
+            IntPtr hWnd = Process.GetCurrentProcess().MainWindowHandle;
+            SetForegroundWindow(hWnd);
+        }
+
         static Image scan(DeviceInfo info)
         {
             CommonDialog dialog = new CommonDialog();
@@ -74,7 +86,7 @@ namespace Scandal
 
                 // This should probably not be hard coded
                 imageFile = dialog.ShowTransfer(device.Items[1]);
-
+                sendConsoleToForeground();
                 if (imageFile != null)
                 {
                     image = toImage(imageFile);

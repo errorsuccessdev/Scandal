@@ -2,8 +2,7 @@
  * TODO:
  *  - Better input handling
  *  - Nicer UI :)
- *  - Hardcode Microsoft Print to PDF as printer instead of relying
- *      on default printer.
+ *  - Better solution for selecting PDF creation method
  */
 
 using System;
@@ -21,37 +20,40 @@ namespace Scandal
     internal class Program
     {
         const int WIA_S_NO_DEVICE_AVAILABLE = -2145320939;
-        static void Main()
-        {
-            DeviceManager deviceManager;
-            DeviceInfos devices;
-            bool noScannersFound = true;
 
-            deviceManager = new DeviceManager();
-            devices = deviceManager.DeviceInfos;
+        static void Main()
+        { 
+            bool noScannersFound = true;
+            DeviceManager deviceManager = new DeviceManager();
+            DeviceInfos devices = deviceManager.DeviceInfos;
 
             foreach (DeviceInfo device in devices)
             {
                 if (device.Type ==
                     WiaDeviceType.ScannerDeviceType)
                 {
-                    Console.Write("Press enter to scan, or p to print: ");
                     noScannersFound = false;
+                    Console.Write(
+                        "Press space to scan, p to print, or q to quit: "
+                    );
                     List<Image> images = new List<Image>();
                     while (true)
                     {
                         ConsoleKeyInfo key = Console.ReadKey(true);
-                        if (key.Key == ConsoleKey.Enter)
+                        if (key.Key == ConsoleKey.Spacebar)
                         {
                             images.Add(scan(device));
                         }
-                        else if (key.KeyChar == 'p')
+                        else if (key.KeyChar == 'p' &&
+                            images.Count > 0)
+                        {
+                            print(images);
+                        }
+                        else if (key.KeyChar == 'q')
                         {
                             break;
                         }
                     }
-
-                    print(images);
                 }
             }
 
@@ -59,8 +61,6 @@ namespace Scandal
             {
                 Console.WriteLine("No scanners were found.");
             }
-
-            Console.Read();
         }
 
         static Image scan(DeviceInfo info)
@@ -72,11 +72,11 @@ namespace Scandal
             {
                 ImageFile imageFile;
 
+                // This should probably not be hard coded
                 imageFile = dialog.ShowTransfer(device.Items[1]);
 
                 if (imageFile != null)
                 {
-                    // do something with the image
                     image = toImage(imageFile);
                 }
             }
@@ -96,8 +96,12 @@ namespace Scandal
             try
             {
                 byte[] data;
-                data = (byte[])imageFile.FileData.get_BinaryData();
-                stream.Write(data, 0, data.Length);
+                data = (byte[]) imageFile.FileData.get_BinaryData();
+                stream.Write(
+                    data, 
+                    0, 
+                    data.Length
+                );
                 image = Image.FromStream(stream);
             }
             catch
@@ -148,18 +152,30 @@ namespace Scandal
             return result;
         }
 
-        // The Click event is raised when the user clicks the Print button.
         static void print(List<Image> images)
         {
             try
             {
-                PrintDocument pd = new PrintDocument();
-                pd.PrintPage +=
-                    delegate (object sender, PrintPageEventArgs ev)
+                PrintDocument printDocument = new PrintDocument();
+                printDocument.PrinterSettings.PrinterName =
+                    "Microsoft Print to PDF";
+                printDocument.PrintPage +=
+                    delegate (object sender, PrintPageEventArgs eventArgs)
                     {
-                        pd_PrintPage(sender, ev, images);
+                        pd_PrintPage(
+                            sender,
+                            eventArgs, 
+                            images
+                        );
                     };
-                pd.Print();
+                if (printDocument.PrinterSettings.IsValid)
+                {
+                    printDocument.Print();
+                }
+                else
+                {
+                    Console.WriteLine("Invalid printer settings!");
+                }
             }
             catch (Exception ex)
             {
@@ -167,16 +183,19 @@ namespace Scandal
             }
         }
 
-        // The PrintPage event is raised for each page to be printed.
+        // The PrintPage event is raised for each page to be printed
         static private void pd_PrintPage(
             object sender,
-            PrintPageEventArgs ev,
+            PrintPageEventArgs eventArgs,
             List<Image> images
         )
         {
-            ev.Graphics.DrawImage(images[0], ev.PageBounds);
+            eventArgs.Graphics.DrawImage(
+                images[0], 
+                eventArgs.PageBounds
+            );
             images.RemoveAt(0);
-            ev.HasMorePages = (images.Count > 0);
+            eventArgs.HasMorePages = (images.Count > 0);
         }
     }
 }

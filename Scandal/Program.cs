@@ -31,41 +31,69 @@ namespace Scandal
         { 
             bool noScannersFound = true;
             DeviceManager deviceManager = new DeviceManager();
-            DeviceInfos devices = deviceManager.DeviceInfos;
-
-            foreach (DeviceInfo device in devices)
+            while (noScannersFound) 
             {
-                if (device.Type ==
-                    WiaDeviceType.ScannerDeviceType)
+                DeviceInfos devices = deviceManager.DeviceInfos;
+                foreach (DeviceInfo device in devices)
                 {
-                    noScannersFound = false;
-                    Console.Write(
-                        "Press space to scan, p to print, or q to quit: "
-                    );
-                    List<Image> images = new List<Image>();
-                    while (true)
+                    if (device.Type ==
+                        WiaDeviceType.ScannerDeviceType)
                     {
-                        ConsoleKeyInfo key = Console.ReadKey(true);
-                        if (key.Key == ConsoleKey.Spacebar)
-                        {
-                            images.Add(scan(device));
-                        }
-                        else if (key.KeyChar == 'p' &&
-                            images.Count > 0)
-                        {
-                            print(images);
-                        }
-                        else if (key.KeyChar == 'q')
-                        {
-                            break;
-                        }
+                        noScannersFound = false;
+                        runScanLoop(device);
+                        break;
                     }
                 }
+                if (noScannersFound)
+                {
+                    Console.WriteLine(
+                        "No scanners were found. Press any key to retry."
+                    );
+                    Console.ReadKey(true);
+                }
             }
+        }
 
-            if (noScannersFound)
+        static void runScanLoop(DeviceInfo device)
+        {
+            Console.Clear();
+            List<Image> images = new List<Image>();
+            while (true)
             {
-                Console.WriteLine("No scanners were found.");
+                Console.WriteLine(
+                    "Press space to scan, p to print, or q to quit: "
+                );
+                ConsoleKeyInfo key = Console.ReadKey(true);
+                if (key.Key == ConsoleKey.Spacebar)
+                {
+                    Console.WriteLine("Scanning image...");
+                    Image image = scan(device);
+                    if (image != null)
+                    {
+                        images.Add(image);
+                        Console.WriteLine(
+                            "Added image " + images.Count + " to list."
+                        );
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "There was a problem scanning the image."
+                        );
+                    }
+                }
+                else if (key.KeyChar == 'p' &&
+                    images.Count > 0)
+                {
+                    Console.WriteLine(
+                        "Printing " + images.Count + " images to PDF."
+                    );
+                    print(images);
+                }
+                else if (key.KeyChar == 'q')
+                {
+                    break;
+                }
             }
         }
 
